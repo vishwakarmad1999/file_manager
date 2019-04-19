@@ -33,7 +33,6 @@ public class CopyActivity extends AppCompatActivity {
     final static String path = "storage/emulated/0/";
 
     Stack<String> pasteStack = new Stack<>();
-    ImageView img;
     String operation;
 
     @Override
@@ -42,13 +41,10 @@ public class CopyActivity extends AppCompatActivity {
         setContentView(R.layout.activity_copy);
 
         operation = getIntent().getStringExtra("operation");
-        img = (ImageView) findViewById(R.id.copyImage);
 
         if (operation.equals("copy")) {
             setTitle("Copy file");
-            img.setImageResource(R.drawable.paste);
         } else if (operation.equals("move")) {
-            img.setImageResource(R.drawable.move);
             setTitle("Move file");
         }
 
@@ -71,47 +67,60 @@ public class CopyActivity extends AppCompatActivity {
 
     public void pasteFile(View view) throws IOException {
         Intent i = getIntent();
-        String fileName = i.getStringExtra("fileName");
+        Bundle args = i.getBundleExtra("BUNDLE");
+        ArrayList<String> passedFileList = (ArrayList<String>) args.getSerializable("fileList");
         String from = i.getStringExtra("from");
         String to = MainActivity.getPath(pasteStack);
+        File source, destination;
 
-        File source = new File(from + fileName + File.separator);
-        File destination = new File(to + fileName + File.separator);
+            if (operation.equals("copy")) {
+                for (String fileName: passedFileList) {
+                    source = new File(from + fileName + File.separator);
+                    destination = new File(to + fileName + File.separator);
+                    if (source.getName() == destination.getName()) {
+                        destination = new File(to + fileName + " (1)" + File.separator);
+                    }
 
-        if (operation.equals("copy")) {
-            if (source.getName() == destination.getName()) {
-                destination = new File(to + fileName + " (1)" + File.separator);
+                    InputStream is = null;
+                    OutputStream os = null;
+
+                    try {
+                        is = new FileInputStream(source);
+                        os = new FileOutputStream(destination);
+                        byte[] buffer = new byte[1024];
+
+                        int length;
+                        while ((length = is.read(buffer)) > 0) {
+                            os.write(buffer, 0, length);
+                        }
+
+                        is.close();
+                        os.close();
+
+                    } catch (Exception e) {
+                        Log.e("Error", e.toString());
+                    }
+                    setResult(RESULT_OK, i);
+                    finish();
             }
-
-            InputStream is = null;
-            OutputStream os = null;
-
-            try {
-                is = new FileInputStream(source);
-                os = new FileOutputStream(destination);
-                byte[] buffer = new byte[1024];
-
-                int length;
-                while ((length = is.read(buffer)) > 0) {
-                    os.write(buffer, 0, length);
-                }
-
-                is.close();
-                os.close();
-
-                setResult(RESULT_OK, i);
-                finish();
-            } catch (Exception e) {
-                Log.e("Error", e.toString());
-            }
-        } else if (operation.equals("move")) {
-            if (source.renameTo(destination)) {
-                setResult(RESULT_OK, i);
-            } else {
-                setResult(RESULT_CANCELED, i);
-            }
-            finish();
         }
+        else if (operation.equals("move")) {
+                boolean flag = true;
+                for (String fileName : passedFileList) {
+                    source = new File(from + fileName + File.separator);
+                    destination = new File(to + fileName + File.separator);
+                    if (!source.renameTo(destination)) {
+                        flag = false;
+                        break;
+                    }
+                }
+                if (!flag) {
+                    setResult(RESULT_CANCELED, i);
+                } else {
+                    setResult(RESULT_OK, i);
+                }
+                finish();
+            }
     }
 
     public void cancelCopy(View view) {

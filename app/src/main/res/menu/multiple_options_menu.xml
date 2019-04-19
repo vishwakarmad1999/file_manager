@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/delete_menu_id"
+        android:title="Delete Items"
+        android:icon="@drawable/delete"
+        />
+
+    <item
+        android:id="@+id/copy_menu_id"
+        android:title="Copy Item"
+        android:icon="@drawable/copy"
+        />
+
+    <item
+        android:id="@+id/move_menu_id"
+        android:title="Move Item(s)"
+        android:icon="@drawable/move"
+        />
+
+    <item
+        android:id="@+id/rename_menu_id"
+        android:title="Rename"
+        android:icon="@drawable/rename" />
+</menu>

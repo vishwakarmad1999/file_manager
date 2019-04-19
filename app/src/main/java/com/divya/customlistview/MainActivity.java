@@ -1,14 +1,24 @@
 package com.divya.customlistview;
 
 import android.Manifest;
+import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.support.annotation.NonNull;
+import android.support.annotation.StringRes;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.view.ActionMode;
+import android.view.KeyEvent;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.view.SubMenu;
 import android.view.View;
+import android.widget.AbsListView;
 import android.widget.AdapterView;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -16,22 +26,28 @@ import android.widget.ListView;
 import android.widget.Toast;
 
 import java.io.File;
+import java.io.Serializable;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Stack;
 
 public class MainActivity extends AppCompatActivity {
 
+    int count = 0;
+
     final static int fileAccessRequestCode = 5, fileCopyCode = 2, fileMoveCode = 3;
     ListView listView;
     ArrayList<Integer> imageResource = new ArrayList<>();
     ArrayList<String> fName = new ArrayList<>();
     ArrayList<String> dateModified = new ArrayList<>();
+    ArrayList<String> fileList = new ArrayList<>();
+
     CustomAdapter customAdapter;
-    LinearLayout optionsLayout, deleteOptionsLayout, renameFLayout;
-    int globalPosition = -1;
+    LinearLayout deleteOptionsLayout, renameFLayout;
     // SimpleDateFormat formats a long type to a Date object specified in the constructor
     SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/YYYY");
+
+    ArrayList<Integer> fileChecked = new ArrayList<>();
 
     // Root path of a user's data
     final static String path = "storage/emulated/0/";
@@ -47,12 +63,68 @@ public class MainActivity extends AppCompatActivity {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE}, fileAccessRequestCode);
         } else {
-            optionsLayout = (LinearLayout) findViewById(R.id.options);
             deleteOptionsLayout = (LinearLayout) findViewById(R.id.deleteConfirm);
             renameFLayout = (LinearLayout) findViewById(R.id.renameF);
 
             listView = (ListView) findViewById(R.id.parentView);
             fillArrayLists();
+            listView.setChoiceMode(AbsListView.CHOICE_MODE_MULTIPLE_MODAL);
+
+            listView.setMultiChoiceModeListener(new AbsListView.MultiChoiceModeListener() {
+                @Override
+                public void onItemCheckedStateChanged(ActionMode mode, int position, long id, boolean checked) {
+                    View item = getViewByPosition(position, listView);
+
+                    if (checked) {
+                        fileList.add(fName.get(position));
+                        count += 1;
+                        item.setBackgroundColor(Color.GRAY);
+                    } else {
+                        fileList.remove(fName.get(position));
+                        count -= 1;
+                        item.setBackgroundColor(Color.WHITE);
+                    }
+
+                    mode.setTitle(count + " selected");
+                }
+                @Override
+                public boolean onCreateActionMode(ActionMode mode, Menu menu) {
+                    MenuInflater inflater = mode.getMenuInflater();
+                    inflater.inflate(R.menu.multiple_options_menu, menu);
+
+                    return true;
+                }
+
+                @Override
+                public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
+//                    Toast.makeText(MainActivity.this, "onPrepareActionMode", Toast.LENGTH_SHORT).show();
+                    return false;
+                }
+
+                @Override
+                public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
+                    int id = item.getItemId();
+                    if (id == R.id.delete_menu_id) {
+                        deleteFile();
+                    } else if (id == R.id.copy_menu_id) {
+                        copyFile();
+                    } else if (id == R.id.move_menu_id) {
+                        moveFile();
+                    } else if (id == R.id.rename_menu_id) {
+                        if (count == 1) {
+                            openRenameDialogBox();
+                        } else {
+                            Toast.makeText(MainActivity.this, "Can't rename multiple files at once", Toast.LENGTH_LONG).show();
+                        }
+                    }
+                    return true;
+                }
+
+                @Override
+                public void onDestroyActionMode(ActionMode mode) {
+                    count = 0;
+                }
+            });
 
             // Handling onClick event
             listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
@@ -70,50 +142,70 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
 
-            // Handling longClick event
-            listView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
-                @Override
-                public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
-//                    Toast.makeText(MainActivity.this, "Long pressed " + fName.get(position), Toast.LENGTH_SHORT).show();
-                    optionsLayout.setVisibility(View.VISIBLE);
-                    globalPosition = position;
-                    return true;
-                }
-            });
+//            // Handling longClick event
+//            listView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
+//                @Override
+//                public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
+////                    Toast.makeText(MainActivity.this, "Long pressed " + fName.get(position), Toast.LENGTH_SHORT).show();
+//                    optionsLayout.setVisibility(View.VISIBLE);
+//                    globalPosition = position;
+//                    return true;
+//                }
+//            });
+        }
+    }
+
+    public View getViewByPosition(int pos, ListView listView) {
+        final int firstListItemPosition = listView.getFirstVisiblePosition();
+        final int lastListItemPosition = firstListItemPosition + listView.getChildCount() - 1;
+
+        if (pos < firstListItemPosition || pos > lastListItemPosition ) {
+            return listView.getAdapter().getView(pos, null, listView);
+        } else {
+            final int childIndex = pos - firstListItemPosition;
+            return listView.getChildAt(childIndex);
         }
     }
 
     // Function handling copying files from one location to another
-    public void copyFile(View view) {
+    public void copyFile() {
         Intent copyIntent = new Intent(this, CopyActivity.class);
         copyIntent.putExtra("from", getPath(pathStack));
-        copyIntent.putExtra("fileName", fName.get(globalPosition));
+
+        Bundle args = new Bundle();
+        args.putSerializable("fileList", (Serializable) fileList);
+        copyIntent.putExtra("BUNDLE", args);
+
         copyIntent.putExtra("operation", "copy");
         startActivityForResult(copyIntent, fileCopyCode);
+        fileList.clear();
     }
 
     // Function handling moving files from one location to another
-    public void moveFile(View view) {
+    public void moveFile() {
         Intent moveIntent = new Intent(this, CopyActivity.class);
         moveIntent.putExtra("from", getPath(pathStack));
-        moveIntent.putExtra("fileName", fName.get(globalPosition));
+
+        Bundle args = new Bundle();
+        args.putSerializable("fileList", (Serializable) fileList);
+        moveIntent.putExtra("BUNDLE", args);
+
         moveIntent.putExtra("operation", "move");
         startActivityForResult(moveIntent, fileMoveCode);
+        fileList.clear();
     }
 
     // Function handling deleting a file
-    public void deleteFile(View view) {
-        optionsLayout.setVisibility(View.GONE);
+    public void deleteFile() {
         deleteOptionsLayout.setVisibility(View.VISIBLE);
     }
 
     // Function handling renaming a file's name
-    public void openRenameDialogBox(View view) {
-        optionsLayout.setVisibility(View.GONE);
+    public void openRenameDialogBox() {
         renameFLayout.setVisibility(View.VISIBLE);
         renameText = (EditText) findViewById(R.id.renameText);
 
-        File f = getFile(fName.get(globalPosition));
+        File f = getFile(fileList.get(0));
 
         if (!f.isDirectory()) {
             final String temp = getFileExtension(f);
@@ -122,11 +214,11 @@ public class MainActivity extends AppCompatActivity {
             renameText.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    renameText.setSelection(0, fName.get(globalPosition).lastIndexOf(temp));
+                    renameText.setSelection(0, fileList.get(0).lastIndexOf(temp));
                 }
             });
         } else {
-            renameText.setText(fName.get(globalPosition));
+            renameText.setText(fileList.get(0));
         }
     }
 
@@ -135,7 +227,7 @@ public class MainActivity extends AppCompatActivity {
         if (name.trim().equals("")) {
             Toast.makeText(this, "Please enter a valid name", Toast.LENGTH_SHORT).show();
         } else {
-            String sourcePath = getPath(pathStack) + fName.get(globalPosition) + File.separator;
+            String sourcePath = getPath(pathStack) + fileList.get(0) + File.separator;
             String destinationPath = getPath(pathStack) + name + File.separator;
 
             File old_file = new File(sourcePath);
@@ -153,20 +245,23 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void confirmDelete(View view) {
-        File f = getFile(fName.get(globalPosition));
-        f.delete();
+        for (String fileName: fileList) {
+            File f = getFile(fileName);
+            f.delete();
+        }
         deleteOptionsLayout.setVisibility(View.GONE);
         //Refreshing the activity
+        fileList.clear();
         finish();
         startActivity(getIntent());
     }
 
     public void cancelDelete(View view) {
-        optionsLayout.setVisibility(View.VISIBLE);
         deleteOptionsLayout.setVisibility(View.GONE);
     }
 
-    public File getFile(String name) {
+    // This function returns the object of File class on the basis of its name
+    public static File getFile(String name) {
         String path = getPath(pathStack);
         path += name + File.separator;
         File f = new File(path);
@@ -203,7 +298,7 @@ public class MainActivity extends AppCompatActivity {
 
         String temp = getPath(pathStack);
 
-        // Creating an object of the File class pointing to the root directory
+    // Creating an object of the File class pointing to the root directory
         File root = new File(temp);
         File[] fileList = root.listFiles();
         String extension;
@@ -224,10 +319,10 @@ public class MainActivity extends AppCompatActivity {
         listView.setAdapter(customAdapter);
     }
 
+    // Function handling back key events
     @Override
     public void onBackPressed() {
-        if (optionsLayout.getVisibility() == View.VISIBLE || renameFLayout.getVisibility() == View.VISIBLE || deleteOptionsLayout.getVisibility() == View.VISIBLE) {
-            optionsLayout.setVisibility(View.GONE);
+        if (renameFLayout.getVisibility() == View.VISIBLE || deleteOptionsLayout.getVisibility() == View.VISIBLE) {
             renameFLayout.setVisibility(View.GONE);
             deleteOptionsLayout.setVisibility(View.GONE);
         }
@@ -239,18 +334,27 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // Function handling checkbox events
+//    public void fileSelected(View view) {
+//        fileChecked.add(view.getId());
+//        Log.i("fileChecked", fileChecked + "");
+//    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        optionsLayout.setVisibility(View.GONE);
         if (requestCode == fileCopyCode) {
             if (resultCode == RESULT_OK) {
                 Toast.makeText(this, "File copied successfully", Toast.LENGTH_SHORT).show();
+                finish();
+                startActivity(getIntent());
             }
         } else if (requestCode == fileMoveCode) {
             if (resultCode == RESULT_OK) {
                 Toast.makeText(this, "File moved successfully", Toast.LENGTH_SHORT).show();
+                finish();
+                startActivity(getIntent());
             } else {
-                Toast.makeText(this, "Unable to moved the file", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Unable to move the file(s)", Toast.LENGTH_SHORT).show();
             }
         }
     }
