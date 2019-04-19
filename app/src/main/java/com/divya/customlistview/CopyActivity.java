@@ -40,6 +40,7 @@ public class CopyActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_copy);
 
+        // operation is set when the user either taps on copy or move option
         operation = getIntent().getStringExtra("operation");
 
         if (operation.equals("copy")) {
@@ -65,6 +66,7 @@ public class CopyActivity extends AppCompatActivity {
         });
     }
 
+    // Function handling pasting/moving of the file to the location pointed by "path"
     public void pasteFile(View view) throws IOException {
         Intent i = getIntent();
         Bundle args = i.getBundleExtra("BUNDLE");
@@ -123,6 +125,7 @@ public class CopyActivity extends AppCompatActivity {
             }
     }
 
+    // When the user cancel the operation
     public void cancelCopy(View view) {
         finish();
     }

@@ -40,6 +40,34 @@
 
     </LinearLayout>
 
+
+    <LinearLayout
+        android:id="@+id/createFolderLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="30dp"
+        android:layout_alignParentBottom="true"
+        android:visibility="gone"
+        android:background="@drawable/customborder">
+
+        <EditText
+            android:id="@+id/newFolderName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAlignment="center"
+            android:selectAllOnFocus="true"
+            android:text="New Folder"/>
+
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:onClick="createFolder"
+            android:text="create"/>
+
+    </LinearLayout>
+
     <LinearLayout
         android:id="@+id/deleteConfirm"
         android:layout_width="match_parent"

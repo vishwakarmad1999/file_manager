@@ -43,7 +43,7 @@ public class MainActivity extends AppCompatActivity {
     ArrayList<String> fileList = new ArrayList<>();
 
     CustomAdapter customAdapter;
-    LinearLayout deleteOptionsLayout, renameFLayout;
+    LinearLayout deleteOptionsLayout, renameFLayout, createNewFolderLayout;
     // SimpleDateFormat formats a long type to a Date object specified in the constructor
     SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/YYYY");
 
@@ -60,11 +60,13 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // Checking whether the user has granted the permissions or not
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE}, fileAccessRequestCode);
         } else {
             deleteOptionsLayout = (LinearLayout) findViewById(R.id.deleteConfirm);
             renameFLayout = (LinearLayout) findViewById(R.id.renameF);
+            createNewFolderLayout = (LinearLayout) findViewById(R.id.createFolderLayout);
 
             listView = (ListView) findViewById(R.id.parentView);
             fillArrayLists();
@@ -141,20 +143,10 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
             });
-
-//            // Handling longClick event
-//            listView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
-//                @Override
-//                public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
-////                    Toast.makeText(MainActivity.this, "Long pressed " + fName.get(position), Toast.LENGTH_SHORT).show();
-//                    optionsLayout.setVisibility(View.VISIBLE);
-//                    globalPosition = position;
-//                    return true;
-//                }
-//            });
         }
     }
 
+    // This method is used to fetch the selected item on the listview
     public View getViewByPosition(int pos, ListView listView) {
         final int firstListItemPosition = listView.getFirstVisiblePosition();
         final int lastListItemPosition = firstListItemPosition + listView.getChildCount() - 1;
@@ -222,6 +214,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // When the rename item on the menu is clicked, this method is called
     public void rename(View view) {
         String name = renameText.getText().toString();
         if (name.trim().equals("")) {
@@ -244,6 +237,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // This method is called when you click on the checkbox of the delete confirmation box
     public void confirmDelete(View view) {
         for (String fileName: fileList) {
             File f = getFile(fileName);
@@ -256,6 +250,7 @@ public class MainActivity extends AppCompatActivity {
         startActivity(getIntent());
     }
 
+    // This method is called when you click on the cross of the delete confirmation box
     public void cancelDelete(View view) {
         deleteOptionsLayout.setVisibility(View.GONE);
     }
@@ -322,9 +317,10 @@ public class MainActivity extends AppCompatActivity {
     // Function handling back key events
     @Override
     public void onBackPressed() {
-        if (renameFLayout.getVisibility() == View.VISIBLE || deleteOptionsLayout.getVisibility() == View.VISIBLE) {
+        if (renameFLayout.getVisibility() == View.VISIBLE || deleteOptionsLayout.getVisibility() == View.VISIBLE || createNewFolderLayout.getVisibility() == View.VISIBLE) {
             renameFLayout.setVisibility(View.GONE);
             deleteOptionsLayout.setVisibility(View.GONE);
+            createNewFolderLayout.setVisibility(View.GONE);
         }
         else if (pathStack.size() == 0) {
             super.onBackPressed();
@@ -334,12 +330,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // Function handling checkbox events
-//    public void fileSelected(View view) {
-//        fileChecked.add(view.getId());
-//        Log.i("fileChecked", fileChecked + "");
-//    }
-
+    // This method is called whwen the CopyActivity has done its job and returns the result
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == fileCopyCode) {
@@ -359,6 +350,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // This method is called when the user either grants/denies the permissions
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         if (requestCode == fileAccessRequestCode) {
@@ -368,5 +360,37 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, "Permission has not been granted " + grantResults.length, Toast.LENGTH_LONG).show();
             }
         }
+    }
+
+    // This method is called when you hit CREATE button while creating a new folder
+    public void createFolder(View v) {
+        EditText editText = (EditText) findViewById(R.id.newFolderName);
+        String folderName = editText.getText().toString();
+        if (! new File(path + folderName).mkdirs()) {
+            Toast.makeText(this, folderName + " already exists", Toast.LENGTH_SHORT).show();
+        }
+        createNewFolderLayout.setVisibility(View.GONE);
+        finish();
+        startActivity(getIntent());
+    }
+
+    // This method acts as an event listener to the items present in the menu
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.newFolder:
+//                Toast.makeText(this, "Want to make a new folder?", Toast.LENGTH_SHORT).show();
+                createNewFolderLayout.setVisibility(View.VISIBLE);
+                return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    // This method is used to inflate the application with our custom toolbar
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater menuInflater = getMenuInflater();
+        menuInflater.inflate(R.menu.menu_main, menu);
+        return true;
     }
 }
