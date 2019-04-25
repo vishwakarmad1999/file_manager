@@ -366,7 +366,8 @@ public class MainActivity extends AppCompatActivity {
     public void createFolder(View v) {
         EditText editText = (EditText) findViewById(R.id.newFolderName);
         String folderName = editText.getText().toString();
-        if (! new File(path + folderName).mkdirs()) {
+        String current_path = getPath(pathStack);
+        if (! new File(current_path + folderName).mkdirs()) {
             Toast.makeText(this, folderName + " already exists", Toast.LENGTH_SHORT).show();
         }
         createNewFolderLayout.setVisibility(View.GONE);
